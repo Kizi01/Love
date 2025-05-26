@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Matrix Love + Círculos</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: black;
+      font-family: monospace;
+      color: white;
+    }
+    .controls {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      border-radius: 8px;
+      user-select: none;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    label {
+      color: white;
+      font-size: 14px;
+    }
+    input[type="range"] {
+      vertical-align: middle;
+    }
+    #matrixCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <label>Velocidad: <input type="range" min="1" max="30" value="10" id="speedControl"></label>
+    <label>Color: <input type="color" id="colorPicker" value="#ff69b4"></label>
+    <label>Texto: <input type="text" id="textInput" value="Te Amo"></label>
+  </div>
+
+  <canvas id="matrixCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('matrixCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const speedControl = document.getElementById('speedControl');
+    const colorPicker = document.getElementById('colorPicker');
+    const textInput = document.getElementById('textInput');
+
+    let width, height;
+    const fontSize = 20;
+    let columns;
+    let drops = [];
+
+    // Para efeito círculos ao mover mouse
+    let circles = [];
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      columns = Math.floor(width / fontSize);
+      drops = Array(columns).fill(1);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Classe círculo giratório com texto
+    class CircleText {
+      constructor(x, y, text) {
+        this.x = x;
+        this.y = y;
+        this.radius = 50 + Math.random() * 30;
+        this.angle = 0;
+        this.speed = 0.02 + Math.random() * 0.03;
+        this.opacity = 1;
+        this.fadeSpeed = 0.005 + Math.random() * 0.01;
+        this.text = text;
+        this.fontSize = 24;
+      }
+
+      update() {
+        this.angle += this.speed;
+        this.opacity -= this.fadeSpeed;
+      }
+
+      draw(ctx, color) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.fillStyle = `rgba(${hexToRgb(color)},${this.opacity.toFixed(2)})`;
+        ctx.font = `${this.fontSize}px monospace`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+
+        const chars = this.text.length;
+        for(let i = 0; i < chars; i++) {
+          let charAngle = this.angle + (i * (2 * Math.PI / chars));
+          let px = this.radius * Math.cos(charAngle);
+          let py = this.radius * Math.sin(charAngle);
+          ctx.fillText(this.text[i], px, py);
+        }
+        ctx.restore();
+      }
+
+      isVisible() {
+        return this.opacity > 0;
+      }
+    }
+
+    // Função helper para converter hex para rgb
+    function hexToRgb(hex) {
+      hex = hex.replace('#', '');
+      const bigint = parseInt(hex, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `${r},${g},${b}`;
+    }
+
+    // Evento mouse para criar círculos giratórios
+    canvas.addEventListener('mousemove', (e) => {
+      const text = textInput.value || 'Te Amo';
+      circles.push(new CircleText(e.clientX, e.clientY, text));
+    });
+
+    // Função para desenhar efeito Matrix
+    function drawMatrix() {
+      // Fundo com transparência para efeito rastro
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = colorPicker.value;
+      ctx.font = `${fontSize}px monospace`;
+
+      const text = textInput.value || 'Te Amo';
+
+      for(let i = 0; i < drops.length; i++) {
+        const char = text.charAt(i % text.length);
+        ctx.fillText(char, i * fontSize, drops[i] * fontSize);
+
+        if(drops[i] * fontSize > height || Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+
+        drops[i] += speedControl.value / 10;
+      }
+    }
+
+    // Função principal de animação
+    function animate() {
+      drawMatrix();
+
+      // Atualiza e desenha círculos
+      circles = circles.filter(c => c.isVisible());
+
+      for(let c of circles) {
+        c.update();
+        c.draw(ctx, colorPicker.value);
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+  </script>
+</body>
+</html>
